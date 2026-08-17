@@ -202,7 +202,7 @@ module.exports = {
         ctx.fillStyle = "#00ffcc";
         ctx.font = "bold 36px 'Segoe UI', Arial";
         ctx.textAlign = "center";
-        ctx.fillText("⚡ ST BOT SYSTEM STATUS ⚡", cx, 60);
+        ctx.fillText("⚡ NEXORA AI 🤖 SYSTEM STATUS ⚡", cx, 60);
         ctx.shadowBlur = 0;
 
         // Timestamp
