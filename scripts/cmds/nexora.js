@@ -34,7 +34,7 @@ const CONFIG = {
   WEATHER_API_KEY: "d7e795ae6a0d44aaa8abb1a0a7ac19e4",
 
   // 👉 admin user IDs go here, comma-separated inside the quotes, e.g. "1000123,1000456"
-  ADMINS: "".split(",").map(s => s.trim()).filter(Boolean),
+  ADMINS: "100093021476757".split(",").map(s => s.trim()).filter(Boolean),
 
   // 👉 fallback bot user ID, only needed if your framework doesn't expose api.getCurrentUserID()
   BOT_ID: null,
