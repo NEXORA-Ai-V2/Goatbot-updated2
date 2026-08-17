@@ -1,41 +1,61 @@
 const axios = require("axios");
-const fs = require("fs");
+const fs = require("fs-extra");
 const path = require("path");
 
 module.exports = {
   config: {
     name: "nigga",
     aliases: ["roast", "burn"],
-    version: "1.2",
-    author: "nexo_here",
+    version: "1.2.1",
+    author: "nexo_here | opu by modified",
     countDown: 2,
     role: 0,
     description: "Send a roast image using UID",
     category: "fun",
     guide: {
-      en: "{pn} @mention\nOr use without mention to roast yourself."
+      en: "{pn} @mention\nOr reply to a message\nOr use without mention to roast yourself."
     }
   },
 
   onStart: async function ({ api, event }) {
     try {
       const mention = Object.keys(event.mentions || {});
-      const targetUID = mention.length > 0 ? mention[0] : event.senderID;
+      let targetUID;
+
+      if (mention.length > 0) {
+        targetUID = mention[0];
+      } else if (event.type === "message_reply" || event.messageReply) {
+        targetUID = event.messageReply.senderID;
+      } else {
+        targetUID = event.senderID;
+      }
 
       const url = `https://betadash-api-swordslush-production.up.railway.app/nigga?userid=${targetUID}`;
       const response = await axios.get(url, { responseType: 'arraybuffer' });
 
-      const filePath = path.join(__dirname, "cache", `roast_${targetUID}.jpg`);
-      fs.writeFileSync(filePath, Buffer.from(response.data, "binary"));
+      const cacheDir = path.join(__dirname, "cache");
+      fs.ensureDirSync(cacheDir);
 
-      api.sendMessage({
-        body: `Look I found a nigga 😂`,
-        attachment: fs.createReadStream(filePath)
-      }, event.threadID, () => fs.unlinkSync(filePath), event.messageID);
+      const filePath = path.join(cacheDir, `roast_${targetUID}.jpg`);
+      fs.writeFileSync(filePath, Buffer.from(response.data));
+
+      return api.sendMessage(
+        {
+          body: "Look I found a nigga 😂",
+          attachment: fs.createReadStream(filePath)
+        },
+        event.threadID,
+        () => {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        },
+        event.messageID
+      );
 
     } catch (e) {
       console.error("Error:", e.message);
-      api.sendMessage("❌ Couldn't generate image. Try again later.", event.threadID, event.messageID);
+      return api.sendMessage("❌ Couldn't generate image. Try again later.", event.threadID, event.messageID);
     }
   }
 };
