@@ -6,8 +6,8 @@ module.exports = {
   config: {
     name: "fight",
     aliases: ["punch"],
-    version: "1.0",
-    author: "chatgpt",
+    version: "1.1",
+    author: "opu",
     countDown: 5,
     role: 0,
     shortDescription: "Fight someone",
@@ -16,15 +16,18 @@ module.exports = {
     guide: "{pn} @mention",
   },
 
-  onStart: async function ({ api, event, args, usersData }) {
+  onStart: async function ({ api, event, usersData }) {
     const { threadID, messageID, senderID, mentions } = event;
 
-    const mentionIDs = Object.keys(mentions);
-    if (mentionIDs.length === 0)
+    // ❌ No mention
+    if (!mentions || Object.keys(mentions).length === 0) {
       return api.sendMessage("👊 Tag someone to fight with!", threadID, messageID);
+    }
+
+    const mentionID = Object.keys(mentions)[0];
 
     const user1 = await usersData.getName(senderID);
-    const user2 = mentions[mentionIDs[0]];
+    const user2 = mentions[mentionID].replace("@", ""); // clean name
 
     const fightMessages = [
       `${user1} punched ${user2} hard! 💥`,
@@ -35,18 +38,32 @@ module.exports = {
 
     const result = fightMessages[Math.floor(Math.random() * fightMessages.length)];
 
-    // Optional: Add fight GIF
     const gifUrl = "https://media.giphy.com/media/xT0GqssRweIhlz209i/giphy.gif";
-    const gifPath = path.join(__dirname, "tmp_fight.gif");
+
+    // temp folder ensure
+    const cachePath = path.join(__dirname, "cache");
+    const gifPath = path.join(cachePath, "fight.gif");
 
     try {
-      const response = await axios.get(gifUrl, { responseType: "arraybuffer" });
-      fs.writeFileSync(gifPath, Buffer.from(response.data, "utf-8"));
+      await fs.ensureDir(cachePath);
 
-      api.sendMessage({
-        body: result,
-        attachment: fs.createReadStream(gifPath)
-      }, threadID, () => fs.unlinkSync(gifPath), messageID);
+      const response = await axios.get(gifUrl, {
+        responseType: "arraybuffer"
+      });
+
+      // ✅ FIX: no utf-8 encoding
+      fs.writeFileSync(gifPath, Buffer.from(response.data));
+
+      api.sendMessage(
+        {
+          body: result,
+          attachment: fs.createReadStream(gifPath)
+        },
+        threadID,
+        () => fs.unlinkSync(gifPath),
+        messageID
+      );
+
     } catch (err) {
       console.error(err);
       return api.sendMessage(result, threadID, messageID);
