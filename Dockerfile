@@ -1,5 +1,13 @@
-FROM node:16
+FROM node:slim
+
+WORKDIR /app
+
+COPY package.json ./
+RUN npm install && npm cache clean --force
+
 COPY . .
-RUN npm install
-EXPOSE 3000
-CMD [ "node" ,"index.js" ]
+
+ENV PORT=5000
+EXPOSE 5000
+
+CMD ["node", "index.js"]
