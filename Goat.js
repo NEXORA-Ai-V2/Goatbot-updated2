@@ -146,20 +146,40 @@ global.utils = utils;
 const { colors } = utils;
 const shutdownManager = require("./func/gracefulShutdown.js");
 
+// Safe array implementation that supports both Array methods (.push) and Map methods safely
+const createThreadDataErrorArray = [];
+createThreadDataErrorArray.set = function (key, value) {
+        this.push({ key, value, timestamp: Date.now() });
+        if (this.length > 1000) this.shift();
+};
+createThreadDataErrorArray.get = function (key) {
+        const found = this.find(item => item.key === key);
+        return found ? found.value : undefined;
+};
+createThreadDataErrorArray.has = function (key) {
+        return this.some(item => item.key === key);
+};
+createThreadDataErrorArray.delete = function (key) {
+        const index = this.findIndex(item => item.key === key);
+        if (index !== -1) this.splice(index, 1);
+};
+
 // Initialize global.temp with size-limited data structures
 global.temp = {
         createThreadData: [],
         createUserData: [],
-        createThreadDataError: new Map(), // threadID -> timestamp; auto-expires after 5 min
+        createThreadDataError: createThreadDataErrorArray, // Fix: Compatible with .push(), .set(), .get()
         contentScripts: {
                 cmds: {},
                 events: {}
         },
         // Add helper to limit array sizes
         _addWithLimit(arr, item, maxSize = 1000) {
-                arr.push(item);
-                if (arr.length > maxSize) {
-                        arr.splice(0, arr.length - maxSize); // Keep only last maxSize items
+                if (Array.isArray(arr)) {
+                        arr.push(item);
+                        if (arr.length > maxSize) {
+                                arr.splice(0, arr.length - maxSize); // Keep only last maxSize items
+                        }
                 }
         }
 };
@@ -394,3 +414,5 @@ if (config.autoRestart) {
         // ———————————————————— LOGIN ———————————————————— //
         require('./bot/login/login.js');
 })();
+
+        
