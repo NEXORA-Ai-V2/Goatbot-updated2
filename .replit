@@ -1,9 +1,7 @@
-language = "nodejs"
-run = "npm start"
+modules = ["nodejs-20", "web"]
+
+[nix]
+channel = "stable-25_05"
 
 [agent]
 expertMode = true
-
-[[ports]]
-localPort = 3000
-externalPort = 80
