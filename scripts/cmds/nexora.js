@@ -24,12 +24,15 @@ const CONFIG = {
   GROUP_MAX: 8,
 
   // 👉 paste your OpenRouter API key here
-  API_KEY: "PUT_YOUR_OPENROUTER_KEY_HERE",
-  MODEL: "openrouter/free",
-  FALLBACK_MODEL: "mistralai/mistral-7b",
+ // API_KEY: "PUT_YOUR_OPENROUTER_KEY_HERE",
+ // MODEL: "openrouter/free",
+//  FALLBACK_MODEL: "mistralai/mistral-7b",
   // vision-capable model for image-to-text — swap if your OpenRouter plan differs
-  VISION_MODEL: "meta-llama/llama-3.2-11b-vision-instruct:free",
+// VISION_MODEL: "meta-llama/llama-3.2-11b-vision-instruct:free", 
 
+  // Toshiro ChatGPT API — no key required
+  AI_API_URL: "https://toshiro-api-editz6t9.vercel.app/api/ai/chatgpt",
+   
   // AccuWeather key
   WEATHER_API_KEY: "d7e795ae6a0d44aaa8abb1a0a7ac19e4",
 
