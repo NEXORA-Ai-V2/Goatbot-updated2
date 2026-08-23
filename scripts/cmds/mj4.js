@@ -1,77 +1,126 @@
-const axios = require("axios");
-const fs = require("fs-extra");
-const path = require("path");
-
-async function downloadImage(url, filePath) {
-  const resp = await axios.get(url, { responseType: "arraybuffer" });
-  await fs.writeFile(filePath, resp.data);
-}
+const axios = require('axios');
+const { getStreamFromURL } = global.utils;
+const fs = require('fs');
+const path = require('path');
+const { createCanvas, loadImage } = require('canvas');
 
 module.exports = {
   config: {
     name: "mj4",
-    aliases: ["mj-4", "mj4cmd"],
+    aliases: ["midjourney4"],
     version: "1.0",
-    author: "Farhan",
-    role: 0,
-    shortDescription: "Generate image via mj-4 API",
+    author: "opu sensei",
+    countDown: 10,
+    longDescription: {
+      en: "Generate 4 AI images using Midjourney (Deku API)."
+    },
     category: "ai",
-    guide: "{pn} <prompt> — e.g. mj4 a futuristic city skyline"
+    role: 0,
+    guide: {
+      en: "{pn} <prompt>"
+    }
   },
 
-  onStart: async function ({ api, event, args }) {
-    const prompt = args.join(" ").trim();
-    if (!prompt) {
-      return api.sendMessage(
-        "❌ Please provide a prompt.\nExample: mj4 a beautiful sunset over mountains",
-        event.threadID,
-        event.messageID
-      );
+  onStart: async function ({ api, event, args, message }) {
+    const prompt = args.join(' ').trim();
+    if (!prompt) return message.reply("❌ Please provide a prompt to generate the image.");
+
+    api.setMessageReaction("⌛", event.messageID, () => {}, true);
+    message.reply("⚡ Midjourney is generating your images. Please wait...", async (err) => {
+      if (err) return console.error(err);
+
+      try {
+        const apiKey = "2044aa2c52bdadb36c1602d709379417";
+        const apiUrl = `https://deku-api.giize.com/api/midjourney?prompt=${encodeURIComponent(prompt)}&apikey=${apiKey}`;
+        const response = await axios.get(apiUrl, {
+          headers: { "x-api-key": apiKey }
+        });
+        const data = response.data;
+
+        const results =
+          data?.images ||
+          data?.result?.images ||
+          data?.results ||
+          null;
+
+        if (!Array.isArray(results) || results.length < 4) {
+          api.setMessageReaction("❌", event.messageID, () => {}, true);
+          return message.reply("❌ Image generation failed. Please try again.");
+        }
+
+        // Load images
+        const imageObjs = await Promise.all(results.slice(0, 4).map(url => loadImage(url)));
+
+        // Create collage (2x2)
+        const canvas = createCanvas(1024, 1024);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imageObjs[0], 0, 0, 512, 512);
+        ctx.drawImage(imageObjs[1], 512, 0, 512, 512);
+        ctx.drawImage(imageObjs[2], 0, 512, 512, 512);
+        ctx.drawImage(imageObjs[3], 512, 512, 512, 512);
+
+        // Save locally
+        const cacheDir = path.join(__dirname, 'cache');
+        if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+        const outputPath = path.join(cacheDir, `mjdeku_collage_${event.senderID}.png`);
+        const out = fs.createWriteStream(outputPath);
+        const stream = canvas.createPNGStream();
+        stream.pipe(out);
+
+        out.on("finish", async () => {
+          api.setMessageReaction("✅", event.messageID, () => {}, true);
+          const msg = {
+            body: "✅ Midjourney finished generating your images!\n\n❏ Reply with U1, U2, U3, or U4 to select one.",
+            attachment: fs.createReadStream(outputPath)
+          };
+          message.reply(msg, (err, info) => {
+            if (err) return console.error(err);
+            global.GoatBot.onReply.set(info.messageID, {
+              commandName: this.config.name,
+              messageID: info.messageID,
+              author: event.senderID,
+              results
+            });
+          });
+        });
+
+      } catch (error) {
+        api.setMessageReaction("❌", event.messageID, () => {}, true);
+        console.error(error.response?.data || error.message);
+        message.reply("❌ An error occurred while generating the image. Please try again.");
+      }
+    });
+  },
+
+  onReply: async function ({ api, event, Reply, message }) {
+    const { author, results, messageID } = Reply;
+    if (event.senderID !== author) {
+      return message.reply("❌ Only the user who initiated the command can select an image.");
     }
 
-    const waitMsg = await api.sendMessage("🎨 Generating image via mj-4…", event.threadID, event.messageID);
+    const input = event.body.trim().toUpperCase();
+    const match = input.match(/^U([1-4])$/);
+
+    if (!match) {
+      return message.reply("❌ Invalid input. Please reply with U1, U2, U3, or U4 to select an image.");
+    }
+
+    const index = parseInt(match[1]) - 1;
+    const selectedImage = results[index];
 
     try {
-      const resp = await axios.get("https://dev.oculux.xyz/api/mj-4", {
-        params: { prompt },
-        timeout: 60000
+      const imageStream = await getStreamFromURL(selectedImage, `mjdeku_selected_U${index + 1}.jpg`);
+      message.reply({
+        body: `✅ Here is your selected image (U${index + 1}) from Midjourney.`,
+        attachment: imageStream
       });
 
-      const data = resp.data;
+      // cleanup listener
+      global.GoatBot.onReply.delete(messageID);
 
-      // **Adjust this part based on the actual JSON response**
-      // Common keys might be: data.url, data.image_url, data.result, data.output, data.images[0]
-      let imgUrl = data.image_url || data.url || data.result || data.output;
-      if (!imgUrl && Array.isArray(data.images) && data.images.length > 0) {
-        imgUrl = data.images[0];
-      }
-
-      if (!imgUrl) {
-        return api.sendMessage(
-          "❌ Failed: no image URL found in mj-4 API response",
-          event.threadID,
-          waitMsg.messageID
-        );
-      }
-
-      const fileName = `mj4_${Date.now()}.jpg`;
-      const dir = path.join(__dirname, "cache");
-      await fs.ensureDir(dir);
-      const filePath = path.join(dir, fileName);
-
-      await downloadImage(imgUrl, filePath);
-
-      api.sendMessage(
-        { body: "✅ Done!", attachment: fs.createReadStream(filePath) },
-        event.threadID,
-        () => {
-          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        },
-        waitMsg.messageID
-      );
-    } catch (err) {
-      console.error("mj-4 API error:", err.response?.data || err.message);
-      api.sendMessage("❌ Error generating image via mj-4 API", event.threadID, waitMsg.messageID);
+    } catch (error) {
+      console.error(error);
+      message.reply("❌ Unable to retrieve the selected image. Please try again.");
     }
   }
 };
