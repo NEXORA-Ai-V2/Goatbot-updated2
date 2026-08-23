@@ -6,6 +6,10 @@
   },
   "envCommands": {
     "daily": {
+      "rewardDay1": {
+        "coin": 100,
+        "exp": 10
+      },
       "rewardFirstDay": {
         "coin": 100,
         "exp": 10
@@ -31,8 +35,5 @@
     "logsbot": {
       "allow": true
     }
-  },
-  "commandUnload": [
-    "alldl.js"
-  ]
+  }
 }
