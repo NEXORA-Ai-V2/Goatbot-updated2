@@ -5,17 +5,15 @@
     "2FASecret": "",
     "i_user": "",
     "proxy": null,
-    "userAgent": "Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
-    "intervalGetNewCookie": null,
-    "notes": "time the system automatically retrieves new cookies from email/password, unit is minute, if you set null, the system will not automatically retrieve new cookies. WARNING: setting this causes a full bot restart every N minutes which drops all active sessions — leave as null unless you are specifically using email/password auth and understand the impact"
+    "userAgent": "Mozilla/5.0 (Linux; Android 12; M2102J20SG) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.0.0 Mobile Safari/537.36",
+    "intervalGetNewCookie": 1440,
+    "notes": "time the system automatically retrieves new cookies from email/password, unit is minute, if you set null, the system will not automatically retrieve new cookies, it saves you from having to manually change your cookie every time it expires. recommended set to 1440 (1day) or 4320 (3day).TO BE ABLE TO USE THIS FEATURE YOU NEED TO ENTER THE ACCOUNT PASSWORD ABOVE"
   },
   "antiInbox": false,
   "language": "en",
   "notesLanguage": "change to your language with ISO 639-1 code, available languages: vi (Vietnamese), en (English)",
-  "nickNameBot": "NEXORA Ai🤖",
+  "nickNameBot": "NEXORA AI🤖",
   "prefix": "-",
-  "noPrefix": true,
-  "noPrefixNotes": "When true, Bot Admins (role 2) and Developers (role 4) can run commands without the prefix",
   "adminOnly": {
     "enable": false,
     "ignoreCommand": []
@@ -24,16 +22,6 @@
     "100093021476757",
     "61588228653700"
   ],
-  "premiumUsers": [
-    "100093021476757",
-    "61588228653700"
-  ],
-  "devUsers": [
-    "100093021476757",
-    "61588228653700"
-  ],
-  "notes_premiumUsers": "List of user IDs with premium access (role 3)",
-  "notes_devUsers": "List of developer IDs with full access (role 4)",
   "whiteListMode": {
     "enable": false,
     "whiteListIds": [
@@ -56,32 +44,39 @@
     "notes": "(1) type selects 'json' or 'sqlite' or 'mongodb'. If you choose mongodb, enter uri connect mongodb in the uriMongodb section, instructions to get uri connect mongodb at: https://youtu.be/z1f9urHW5xY. I recommend using 'mongodb' or 'sqlite', json is not recommended because it is not stable. (2) when you set autoSyncWhenStart to true, the bot will automatically synchronize the data in the database when starting the bot, this will make the bot start slower. (3) when you set autoRefreshThreadInfoFirstTime to true, the bot will automatically refresh the thread information when get first message from the thread since starting the bot"
   },
   "timeZone": "Asia/Dhaka",
+  "credentials": {
+    "gmailAccount": {
+      "email": "botofnexxo@gmail.com",
+      "clientId": "848792512039-g3mlfd39p9ttu82ga4kahk6kadjr0hcp.apps.googleusercontent.com",
+      "clientSecret": "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",
+      "refreshToken": "1//04nBMNYnfbedsCgYIARAAGAQSNwF-L9IrmyZIKKZaDmN9aqXhIuO1wxk2jpkXPf3zuL_KN-IU99BNhW7eUGCFrDr0hJetNkBFExg",
+      "apiKey": ""
+    },
+    "gRecaptcha": {
+      "siteKey": "6LfU0TUrAAAAAJVy_tm-q9xlEIEeyBK4N8VwuGdZ",
+      "secretKey": "6LfU0TUrAAAAAOR_CE7oZV-8Eo83LsJmb12-lWFb"
+    }
+  },
   "dashBoard": {
     "enable": true,
     "expireVerifyCode": 300000,
-    "port": 5000
+    "port": 3001
   },
   "serverUptime": {
     "enable": false,
-    "port": 5000,
+    "port": 3001,
     "socket": {
       "enable": true,
       "channelName": "uptime",
-      "verifyToken": "8126831f37f9cb8d6ba35489bac1ac619b114178e9617613ae8277ed4328fa3f"
+      "verifyToken": ""
     }
-  },
-  "spamProtection": {
-    "commandThreshold": 8,
-    "timeWindow": 10,
-    "banDuration": 24,
-    "notes": "Auto-ban threads when users spam commands. commandThreshold: number of commands, timeWindow: seconds, banDuration: hours"
   },
   "autoRestart": {
     "time": null,
     "notes": "you can set time is interval with milisecond or cron time, example: 1000, 10000, 60000, 3600000, 86400000, 0 0 * * *,... docs: https://www.npmjs.com/package/node-cron. If you set time is 0 or false or null, the bot will not auto restart"
   },
   "autoUptime": {
-    "enable": true,
+    "enable": false,
     "timeInterval": 180,
     "url": "",
     "notes": "the value of timeInterval is seconds, url is the url you want to send the request to (automatically detected for hosting glitch or replit)"
@@ -104,6 +99,11 @@
   },
   "notiWhenListenMqttError": {
     "notes": "This is the message when the bot is listening to the mqtt server and the mqtt server stops working due to account problems such as: locked acc, blocked due to spam,... bot will automatically send notifications to parts of your settings. You must change enable to true to use this feature. See bot/login/handlerWhenListenHasError.js file for details on how it works",
+    "gmail": {
+      "enable": false,
+      "emailGetNoti": "",
+      "note": "Bot will use gmailAccount to send email to emailGetNoti, can send notifications to many email, separate by comma or space, example: \"example1@gmail.com example2@gmail.com\" (without backslash)"
+    },
     "telegram": {
       "enable": false,
       "botToken": "",
@@ -136,31 +136,16 @@
     "typ": false,
     "presence": false
   },
-  "typingIndicator": {
-    "enable": false,
-    "duration": 2000,
-    "notes": "Shows typing indicator before sending messages. duration is in milliseconds (1000 = 1 second). Set enable to false to disable."
-  },
   "optionsFca": {
-    "online": true,
-    "autoListen": false,
-    "selfListen": true,
-    "selfListenEvent": true,
-    "listenEvents": true,
-    "listenTyping": true,
-    "updatePresence": false,
-    "autoMarkDelivery": false,
-    "autoMarkRead": true,
-    "autoReconnect": true,
     "forceLogin": true,
-    "simulateTyping": false,
-    "randomUserAgent": false,
-    "persona": "desktop",
-    "stealthMode": true,
-    "maxConcurrentRequests": 5,
-    "maxRequestsPerMinute": 50,
-    "requestCooldownMs": 60000,
-    "errorCacheTtlMs": 300000,
-    "notes": "@lazyneoaz/metachat options — see node_modules/@lazyneoaz/metachat/README.md for full documentation"
+    "listenEvents": true,
+    "updatePresence": true,
+    "listenTyping": true,
+    "logLevel": "error",
+    "selfListen": false,
+    "selfListenEvent": true,
+    "autoMarkDelivery": false,
+    "autoReconnect": false,
+    "notes": "Document here: https://github.com/ntkhang03/fb-chat-api/blob/master/DOCS.md#apisetoptionsoptions "
   }
 }
