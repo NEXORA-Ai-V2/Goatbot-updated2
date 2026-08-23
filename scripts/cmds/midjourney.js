@@ -6,13 +6,13 @@ const { createCanvas, loadImage } = require('canvas');
 
 module.exports = {
   config: {
-    name: "mj",
-    aliases: ["mjt"],
-    version: "2.1",
-    author: "Farhan (fixed by Assistant)",
+    name: "midjourney",
+    aliases: ["mj"],
+    version: "2.2",
+    author: "opu sensei",
     countDown: 10,
     longDescription: {
-      en: "Generate fast AI images using the new Midjourney Turbo engine (goku)."
+      en: "Generate fast AI images using the new Midjourney ."
     },
     category: "ai",
     role: 0,
@@ -26,18 +26,20 @@ module.exports = {
     if (!prompt) return message.reply("❌ Please provide a prompt to generate the image.");
 
     api.setMessageReaction("⌛", event.messageID, () => {}, true);
-    message.reply("⚡ Midjourney Turbo is generating your images. Please wait...", async (err) => {
+    message.reply("⚡ Midjourney  is generating your images. Please wait...", async (err) => {
       if (err) return console.error(err);
 
       try {
-        const apiUrl = `https://dev.oculux.xyz/api/mj-proxy-pub?prompt=${encodeURIComponent(prompt)}`;
+        const apiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/mj?prompt=${encodeURIComponent(prompt)}`;
         const response = await axios.get(apiUrl);
-        const { status, results } = response.data;
+        const { success, result } = response.data;
 
-        if (status !== "completed" || !Array.isArray(results) || results.length < 4) {
+        if (!success || !result || !Array.isArray(result.images) || result.images.length < 4) {
           api.setMessageReaction("❌", event.messageID, () => {}, true);
           return message.reply("❌ Image generation failed. Please try again.");
         }
+
+        const results = result.images;
 
         // Load images
         const imageObjs = await Promise.all(results.map(url => loadImage(url)));
