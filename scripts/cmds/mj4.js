@@ -26,7 +26,7 @@ module.exports = {
     if (!prompt) return message.reply("❌ Please provide a prompt to generate the image.");
 
     api.setMessageReaction("⌛", event.messageID, () => {}, true);
-    message.reply("⚡ Midjourney is generating your images. Please wait...", async (err) => {
+    message.reply("🖼️ Mj4 is generating your images. Please wait...", async (err) => {
       if (err) return console.error(err);
 
       try {
