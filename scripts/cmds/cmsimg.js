@@ -1,4 +1,5 @@
 const axios = require('axios');
+const stream = require('stream');
 
 module.exports = {
   config: {
@@ -22,29 +23,29 @@ module.exports = {
     if (!prompt) return message.reply("❌ Please provide a prompt to generate the image.");
 
     api.setMessageReaction("⌛", event.messageID, () => {}, true);
-    message.reply("⚡ Image Generator is generating your image. Please wait...", async (err) => {
-      if (err) return console.error(err);
 
-      try {
-        const apiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/msai?prompt=${encodeURIComponent(prompt)}`;
-        const response = await axios.get(apiUrl, { responseType: 'arraybuffer' });
+    try {
+      message.reply("🫟 canva magic studio is generating your image. Please wait...");
 
-        const buffer = Buffer.from(response.data);
-        const stream = require('stream');
-        const imageStream = new stream.PassThrough();
-        imageStream.end(buffer);
+      const apiUrl = `https://toshiro-api-editz6t9.vercel.app/api/image/msai?prompt=${encodeURIComponent(prompt)}`;
+      const response = await axios.get(apiUrl, { responseType: 'arraybuffer' });
 
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
-        message.reply({
-          body: `✅ Here is your AI generated image for: "${prompt}"`,
-          attachment: imageStream
-        });
+      const buffer = Buffer.from(response.data);
+      const imageStream = new stream.PassThrough();
+      imageStream.end(buffer);
+      imageStream.path = "image.png"; // Facebook API এর জন্য ফাইল নাম/এক্সটেনশন প্রয়োজন
 
-      } catch (error) {
-        api.setMessageReaction("❌", event.messageID, () => {}, true);
-        console.error(error.response?.data || error.message);
-        message.reply("❌ An error occurred while generating the image. Please try again.");
-      }
-    });
+      api.setMessageReaction("✅", event.messageID, () => {}, true);
+      return message.reply({
+        body: `✅ Here is your AI generated image for: "${prompt}"`,
+        attachment: imageStream
+      });
+
+    } catch (error) {
+      api.setMessageReaction("❌", event.messageID, () => {}, true);
+      const errDetails = error.response?.data ? Buffer.from(error.response.data).toString() : error.message;
+      console.error("CMSIMG Command Error:", errDetails);
+      return message.reply("❌ An error occurred while generating the image. Please try again.");
+    }
   }
 };
