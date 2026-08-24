@@ -29,9 +29,12 @@ const CONFIG = {
 //  FALLBACK_MODEL: "mistralai/mistral-7b",
   // vision-capable model for image-to-text — swap if your OpenRouter plan differs
 // VISION_MODEL: "meta-llama/llama-3.2-11b-vision-instruct:free", 
-
-  // Toshiro ChatGPT API — no key required
-  AI_API_URL: "https://toshiro-api-editz6t9.vercel.app/api/ai/chatgpt",
+  MAIN_API: "https://toshiro-api-editz6t9.vercel.app/api/ai/chatgpt",
+  
+ VISION_API: "https://deku-api.giize.com/api/gemini",
+  VISION_API_KEY: "2044aa2c52bdadb36c1602d709379417",
+   
+  
    
   // AccuWeather key
   WEATHER_API_KEY: "d7e795ae6a0d44aaa8abb1a0a7ac19e4",
@@ -900,36 +903,43 @@ async function getWeatherText(location) {
 }
 
 /* ===============================
+/* ===============================
    🤖 AI LOGIC
 ================================*/
 const AI = {
-  async _call(model, messages) {
-    const res = await axios.post(
-      "https://openrouter.ai/api/v1/chat/completions",
-      { model, messages },
-      {
-        headers: {
-          Authorization: `Bearer ${CONFIG.API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        timeout: 30000
-      }
-    );
-
-    const content = res.data && res.data.choices && res.data.choices[0] &&
-      res.data.choices[0].message && res.data.choices[0].message.content;
-
-    if (!content) throw new Error(`Empty/invalid AI response from model "${model}"`);
-    return content;
+  // Helper to extract text from messages/prompt
+  _getPrompt(messages) {
+    if (typeof messages === "string") return messages;
+    if (Array.isArray(messages)) {
+      const lastUser = messages.filter(m => m.role === "user").pop();
+      return lastUser ? lastUser.content : messages.map(m => m.content).join("\n");
+    }
+    return String(messages || "");
   },
 
   async ask(messages) {
     try {
-      return await withRetry(() => this._call(CONFIG.MODEL, messages), 1, 500);
+      return await withRetry(async () => {
+        const prompt = this._getPrompt(messages);
+        const res = await axios.get(CONFIG.MAIN_API, {
+          params: { prompt },
+          timeout: 30000
+        });
+        const content = res.data && (res.data.result || res.data.response || res.data.reply || res.data);
+        if (!content) throw new Error("Empty response from ChatGPT API");
+        return content;
+      }, 1, 500);
     } catch (e) {
       console.error("⚠️ Primary model failed, trying fallback model:", e.message);
       try {
-        return await this._call(CONFIG.FALLBACK_MODEL, messages);
+        const prompt = this._getPrompt(messages);
+        const res = await axios.get(CONFIG.MAIN_API, {
+          params: { prompt },
+          timeout: 30000
+        });
+        const content = res.data && (res.data.result || res.data.response || res.data.reply || res.data);
+        if (!content) throw new Error("Empty fallback response");
+        return content;
       } catch (fallbackErr) {
         console.error("❌ Fallback model failed:", fallbackErr.message);
         throw fallbackErr;
@@ -937,9 +947,22 @@ const AI = {
     }
   },
 
-  async askVision(messages) {
+  async askVision(messages, imageUrl) {
     try {
-      return await withRetry(() => this._call(CONFIG.VISION_MODEL, messages), 1, 500);
+      return await withRetry(async () => {
+        const prompt = this._getPrompt(messages) || "Describe this image";
+        const res = await axios.get(CONFIG.VISION_API, {
+          params: {
+            q: prompt,
+            url: imageUrl,
+            apikey: CONFIG.VISION_API_KEY
+          },
+          timeout: 30000
+        });
+        const content = res.data && (res.data.result || res.data.response || res.data.gemini || res.data);
+        if (!content) throw new Error("Empty vision response");
+        return content;
+      }, 1, 500);
     } catch (e) {
       console.error("⚠️ Vision model failed:", e.message);
       throw e;
@@ -967,7 +990,7 @@ If asked who made/built/owns you: answer "OPU SENSEI". Never mention OpenAI/Anth
     };
   }
 };
-
+                    
 /* ===============================
    🎨 UI
 ================================*/
