@@ -11,7 +11,7 @@ module.exports = {
     category: "box chat",
   },
 
-  onEvent: async function ({ api, event, usersData, threadsData }) {
+  onStart: async function ({ api, event, usersData, threadsData }) {
     if (event.logMessageType === "log:subscribe") {
       const { threadID } = event;
       const { addedParticipants } = event.logMessageData;
