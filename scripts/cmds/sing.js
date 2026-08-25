@@ -1,80 +1,149 @@
 const axios = require("axios");
+const fs = require("fs-extra");
+const path = require("path");
 
-const mahmud = async () => {
-        const base = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
-        return base.data.mahmud;
-};
+const BASE_URL = "https://play.nkx.lol";
+const MAX_ATTACHMENT_BYTES = 26214400;
+const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const REQUEST_HEADERS = { "User-Agent": BROWSER_UA };
+
+function resolveUrl(uri, baseUrl) {
+  try {
+    return new URL(uri, baseUrl).href;
+  } catch (e) {
+    return uri;
+  }
+}
+
+function parseMediaPlaylist(text, baseUrl) {
+  let initUrl = null;
+  const segments = [];
+
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (line.startsWith("#EXT-X-MAP:")) {
+      const m = line.match(/URI="([^"]+)"/);
+      if (m) initUrl = resolveUrl(m[1], baseUrl);
+    } else if (!line.startsWith("#")) {
+      segments.push(resolveUrl(line, baseUrl));
+    }
+  }
+
+  return { initUrl, segments };
+}
+async function fetchAndParsePlaylist(url) {
+  const res = await axios.get(url, { headers: REQUEST_HEADERS, timeout: 20000, responseType: "text" });
+  const text = typeof res.data === "string" ? res.data : String(res.data);
+
+  if (text.includes("#EXT-X-STREAM-INF")) {
+    const variantLine = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .find((l) => l && !l.startsWith("#"));
+    if (!variantLine) throw new Error("Master playlist had no variant stream.");
+    return fetchAndParsePlaylist(resolveUrl(variantLine, url));
+  }
+
+  return parseMediaPlaylist(text, url);
+}
+
+async function downloadHlsAudio(streamUrl) {
+  const { initUrl, segments } = await fetchAndParsePlaylist(streamUrl);
+  if (segments.length === 0) throw new Error("No segments were found in the HLS playlist.");
+
+  const buffers = [];
+  let totalBytes = 0;
+
+  if (initUrl) {
+    const initRes = await axios.get(initUrl, { headers: REQUEST_HEADERS, responseType: "arraybuffer", timeout: 20000 });
+    buffers.push(Buffer.from(initRes.data));
+    totalBytes += initRes.data.byteLength;
+  }
+
+  for (const segUrl of segments) {
+    const segRes = await axios.get(segUrl, { headers: REQUEST_HEADERS, responseType: "arraybuffer", timeout: 20000 });
+    totalBytes += segRes.data.byteLength;
+    if (totalBytes > MAX_ATTACHMENT_BYTES) {
+      throw new Error("Audio stream exceeds Messenger's 25MB limit.");
+    }
+    buffers.push(Buffer.from(segRes.data));
+  }
+
+  return { buffer: Buffer.concat(buffers), isFragmentedMp4: !!initUrl };
+}
 
 module.exports = {
-        config: {
-                name: "sing",
-                version: "1.7",
-                author: "MahMUD",
-                countDown: 10,
-                role: 0,
-                description: {
-                        bn: "যেকোনো গান সার্চ করে অডিও ফাইল ডাউনলোড করুন",
-                        en: "Search and download any song as an audio file",
-                        vi: "Tìm kiếm và tải xuống bất kỳ bài hát nào dưới dạng tệp âm thanh"
-                },
-                category: "media",
-                guide: {
-                        bn: '   {pn} <গানের নাম>: গান ডাউনলোড করতে নাম লিখুন',
-                        en: '   {pn} <song name>: Enter song name to download',
-                        vi: '   {pn} <tên bài hát>: Nhập tên bài hát để tải xuống'
-                }
-        },
+  config: {
+    name: "sing",
+    aliases: ["song", "music"],
+    version: "1.1",
+    author: "Neoaz 🐊",
+    countDown: 5,
+    role: 0,
+    shortDescription: { en: "Search and download a song" },
+    longDescription: { en: "Search and download the top matching song automatically." },
+    category: "media",
+    guide: { en: "{pn} <song name>" }
+  },
 
-        langs: {
-                bn: {
-                        noInput: "× বেবি, গানের নাম তো দাও! 🎵\nউদাহরণ: {pn} shape of you",
-                        success: "✅ | এই নাও তোমার গান বেবি <😘\n• 𝐒𝐨𝐧𝐠: %1",
-                        error: "× সমস্যা হয়েছে: %1। প্রয়োজনে Contact MahMUD।"
-                },
-                en: {
-                        noInput: "× Baby, please provide a song name! 🎵\nExample: {pn} shape of you",
-                        success: "✅ | Here's your requested song baby <😘\n• 𝐒𝐨𝐧𝐠: %1",
-                        error: "× API error: %1. Contact MahMUD for help."
-                },
-                vi: {
-                        noInput: "× Cưng ơi, vui lòng cung cấp tên bài hát! 🎵\nVí dụ: {pn} shape of you",
-                        success: "✅ | Bài hát của cưng đây <😘\n• 𝐁𝐚̀𝐢 𝐡𝐚́𝐭: %1",
-                        error: "× Lỗi: %1. Liên hệ MahMUD để hỗ trợ."
-                }
-        },
+  onStart: async function ({ message, args, event, api }) {
+    const query = args.join(" ");
+    if (!query) return message.reply("Please provide a song name.");
 
-        onStart: async function ({ api, event, args, message, getLang }) {
-                const authorName = String.fromCharCode(77, 97, 104, 77, 85, 68);
-                if (this.config.author !== authorName) {
-                        return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);
-                }
+    api.setMessageReaction("⏳", event.messageID);
 
-                const query = args.join(" ");
-                if (!query) return message.reply(getLang("noInput"));
+    try {
+      const searchRes = await axios.get(`${BASE_URL}/search`, {
+        params: { q: query, limit: 1 },
+        timeout: 25000,
+        validateStatus: () => true
+      });
 
-                try {
-                        api.setMessageReaction("⌛", event.messageID, () => {}, true);
+      if (searchRes.status >= 400) {
+        api.setMessageReaction("❌", event.messageID);
+        return message.reply(`Search failed (status ${searchRes.status}).`);
+      }
 
-                        const baseUrl = await mahmud();
-                        const apiUrl = `${baseUrl}/api/song/mahmud?query=${encodeURIComponent(query)}`;
+      const results = searchRes.data?.results;
+      if (!Array.isArray(results) || results.length === 0) {
+        api.setMessageReaction("❌", event.messageID);
+        return message.reply("No songs found for your query.");
+      }
 
-                        const response = await axios({
-                                method: "GET",
-                                url: apiUrl,
-                                responseType: "stream"
-                        });
+      const selected = results[0];
+      const streamUrl = selected.audio_cdn_url;
+      const title = selected.title || query;
 
-                        return message.reply({
-                                body: getLang("success", query),
-                                attachment: response.data
-                        }, () => {
-                                api.setMessageReaction("🪽", event.messageID, () => {}, true);
-                        });
+      if (!streamUrl) {
+        api.setMessageReaction("❌", event.messageID);
+        return message.reply("No playable stream was found for that result.");
+      }
 
-                } catch (err) {
-                        console.error("Sing Error:", err);
-                        api.setMessageReaction("❌", event.messageID, () => {}, true);
-                        return message.reply(getLang("error", err.message));
-                }
-        }
+      const { buffer, isFragmentedMp4 } = await downloadHlsAudio(streamUrl);
+      if (buffer.length === 0) {
+        api.setMessageReaction("❌", event.messageID);
+        return message.reply("The downloaded audio was empty.");
+      }
+
+      const cacheDir = path.join(__dirname, "cache");
+      await fs.ensureDir(cacheDir);
+      const ext = isFragmentedMp4 ? "m4a" : "aac";
+      const filePath = path.join(cacheDir, `${Date.now()}.${ext}`);
+      await fs.writeFile(filePath, buffer);
+
+      await message.reply({
+        body: title,
+        attachment: fs.createReadStream(filePath)
+      });
+
+      api.setMessageReaction("✅", event.messageID);
+      fs.remove(filePath).catch(() => {});
+    } catch (e) {
+      console.error("[SING COMMAND ERROR]:", e?.response?.data || e.message || e);
+      api.setMessageReaction("❌", event.messageID);
+      message.reply("An error occurred while processing the download.");
+    }
+  }
 };
